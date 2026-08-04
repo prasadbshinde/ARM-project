@@ -1,0 +1,103 @@
+/////////////////////////////////////////*main_nodeB.c(rx)*/////////////////////////////////////////////////////
+#include<lpc21xx.h>
+#include "header.h"
+
+CAN1 v1;
+int flag;
+
+ain(){
+	float a;
+	int b,c;
+	char s[20];
+	can1_init();
+	adc_init();
+	uart0_init(9600);
+	config_handler_can0();
+	 
+	
+	while(1){
+
+
+		if(flag==1){
+		uart0_tx_string("rec....\r\n");
+		flag=0;
+		if(C1RDA==0x01)
+		uart0_tx_string("\r\n object detected brakes applied ...\n");
+	    else if(C1RDA==0x02)
+		uart0_tx_string("\r\n crash detected...\n");
+		else if(C1RDA==0x03)
+		uart0_tx_string("\r\n door is open...\n");
+		else if(C1RDA==0x04)
+		uart0_tx_string("\r\n door is closed...\n");
+		 }
+		 
+		 a=adc_read(0);
+		 a=(a/1023.0)*3.3;
+		 a=a*5.0;
+
+		 delay_ms(20);
+		 b=adc_read(1);
+		 b=(b*180)/1023;
+
+		  c=adc_read(2);
+		 c=(c*330)/1023;
+		 sprintf(s,"S:%d km/hr V:%.2f v T:%d\r\n",b,a,c);
+		 uart0_tx_string(s);
+		 if(c>=85)
+		 {
+		 uart0_tx_string("Temp increased:");
+		 uart0_integer(c);
+		   uart0_tx_string("\r\n");
+		 }
+		
+		 if(a<2.2)
+		 {
+		 uart0_tx_string("low power:");
+		 sprintf(s,"V:%.2f ",a);
+		 uart0_tx_string(s);
+		 uart0_tx_string("\r\n");
+		  }
+		  if(b>150)
+		  {
+		  uart0_tx_string("over speed:");
+		  sprintf(s,"S:%d km/hr",b);
+		 uart0_tx_string(s);
+		 uart0_tx_string("\r\n");
+		   }
+		  
+		 delay_ms(4000);
+	
+	
+		 }
+	   }
+
+
+//////////////////////////////////////////////ISr(rx)/////////////////////////////////////////////////////////////////////
+#include<lpc21xx.h>
+extern int flag;
+void config_can0(void)__irq{
+unsigned long int icr =C1ICR;
+if(icr & 0X01){
+C1CMR=(1<<2);
+//C1ICR=1;
+}	 
+//uart0_tx("rec rec....\r\n");
+flag=1;
+VICVectAddr=0;
+}
+
+void config_handler_can0(void){
+
+
+C1IER=1;
+VICIntEnable=1<<26;
+VICIntSelect=0;
+VICVectCntl0=26 | 1<<5;
+VICVectAddr0=(unsigned int)config_can0;
+}
+
+
+
+
+
+
